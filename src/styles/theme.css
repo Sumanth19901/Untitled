@@ -1,0 +1,196 @@
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  /* Railway Simulation Design System - Industrial Dark Mode */
+  --font-size: 16px;
+
+  /* Backgrounds - Deep Navy Industrial */
+  --bg-very-dark-navy: #10141D;
+  --bg-slate-gray: #202632;
+  --background: var(--bg-very-dark-navy);
+  --foreground: #E5E7EB;
+  --card: var(--bg-slate-gray);
+  --card-foreground: #E5E7EB;
+
+  /* Primary Accent - Bright Industrial Cyan */
+  --primary-cyan: #00D8FF;
+  --primary: var(--primary-cyan);
+  --primary-foreground: var(--bg-very-dark-navy);
+
+  /* Status Colors */
+  --status-danger: #FF3B3B;
+  --status-caution: #FFC700;
+  --status-info: #2D8CFF;
+
+  /* Schematic Track Colors */
+  --track-free: #A0AEC0;
+  --track-occupied: #E53E3E;
+
+  /* Signal Colors */
+  --signal-green: #48BB78;
+  --signal-yellow: #ECC94B;
+  --signal-red: #F56565;
+
+  /* UI Element Colors */
+  --secondary: #374151;
+  --secondary-foreground: #E5E7EB;
+  --muted: #1F2937;
+  --muted-foreground: #9CA3AF;
+  --accent: var(--primary-cyan);
+  --accent-foreground: var(--bg-very-dark-navy);
+  --destructive: var(--status-danger);
+  --destructive-foreground: #ffffff;
+  --border: #374151;
+  --input: #1F2937;
+  --input-background: #1F2937;
+  --switch-background: #4B5563;
+  --ring: var(--primary-cyan);
+
+  /* Typography Weights */
+  --font-weight-medium: 500;
+  --font-weight-normal: 400;
+  --font-weight-mono: 400;
+
+  /* Border Radius - Minimal for Industrial Look */
+  --radius: 0.25rem;
+
+  /* Popover */
+  --popover: var(--bg-slate-gray);
+  --popover-foreground: #E5E7EB;
+
+  /* Chart Colors */
+  --chart-1: var(--primary-cyan);
+  --chart-2: var(--signal-green);
+  --chart-3: var(--status-caution);
+  --chart-4: var(--status-info);
+  --chart-5: var(--status-danger);
+}
+
+@theme inline {
+  /* Base Colors */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-input-background: var(--input-background);
+  --color-switch-background: var(--switch-background);
+  --color-ring: var(--ring);
+
+  /* Railway Simulation Specific Colors */
+  --color-primary-cyan: var(--primary-cyan);
+  --color-bg-very-dark-navy: var(--bg-very-dark-navy);
+  --color-bg-slate-gray: var(--bg-slate-gray);
+  --color-status-danger: var(--status-danger);
+  --color-status-caution: var(--status-caution);
+  --color-status-info: var(--status-info);
+  --color-track-free: var(--track-free);
+  --color-track-occupied: var(--track-occupied);
+  --color-signal-green: var(--signal-green);
+  --color-signal-yellow: var(--signal-yellow);
+  --color-signal-red: var(--signal-red);
+
+  /* Charts */
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  /* Radius */
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 2px);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+
+  /**
+  * Railway Simulation Typography System
+  * H1: Dashboard Title - Inter 32px/48px Medium
+  * H2: Section Headers - Inter 24px/36px Medium
+  * H3: Subsection - Inter 18px/27px Medium
+  * Body: Inter 16px/24px Regular
+  * Mono: IBM Plex Mono 14px/21px for data grids and logs
+  */
+
+  html {
+    font-size: var(--font-size);
+  }
+
+  h1 {
+    font-size: 2rem;
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+    letter-spacing: -0.02em;
+  }
+
+  h2 {
+    font-size: 1.5rem;
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+    letter-spacing: -0.01em;
+  }
+
+  h3 {
+    font-size: 1.125rem;
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+  }
+
+  h4 {
+    font-size: 1rem;
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+  }
+
+  label {
+    font-size: 0.875rem;
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+    letter-spacing: 0.01em;
+    text-transform: uppercase;
+  }
+
+  button {
+    font-size: 0.875rem;
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+  }
+
+  input {
+    font-size: 1rem;
+    font-weight: var(--font-weight-normal);
+    line-height: 1.5;
+  }
+
+  .mono {
+    font-family: 'IBM Plex Mono', 'Courier New', monospace;
+    font-size: 0.875rem;
+    line-height: 1.5;
+  }
+}
