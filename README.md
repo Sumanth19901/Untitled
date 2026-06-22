@@ -76,6 +76,22 @@ graph TD
 
 ---
 
+## 📸 Output Screens
+
+### 🔐 Multi-Role Login Portal
+![Login Screen](./docs/screenshots/login_screen.png)
+
+### ⚙️ Administrator Control Panel
+![Admin Dashboard](./docs/screenshots/admin_dashboard.png)
+
+### 👨‍🏫 Trainer/Supervisor Dashboard
+![Trainer Dashboard](./docs/screenshots/trainer_dashboard.png)
+
+### 🎓 Trainee Simulation & Control Panel
+![Trainee Dashboard](./docs/screenshots/trainee_dashboard.png)
+
+---
+
 ## 🚀 Running the Code
 
 ### Installation
