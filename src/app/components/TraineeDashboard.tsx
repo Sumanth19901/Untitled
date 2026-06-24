@@ -1,22 +1,23 @@
 /* eslint-disable */
 import { useState, useEffect, useRef } from "react";
-import { User } from "./LoginScreen";
+import { User, UserRole } from "./LoginScreen";
 import { UserHeader } from "./UserHeader";
 import {
   Play, Pause, Square, SkipForward, AlertTriangle, CheckCircle2,
   BookOpen, BarChart2, Target, Award, Clock, TrendingUp, ChevronRight,
   Star, AlertCircle, Zap, Cloud, History, FileText, Radio,
   MapPin, Navigation, RotateCcw, Shield, Activity, LogOut,
-  ChevronDown, ChevronUp, ArrowRight, Cpu,
+  ChevronDown, ChevronUp, ArrowRight, Cpu, MessageSquare,
 } from "lucide-react";
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, ResponsiveContainer,
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
 } from "recharts";
+import { TrainLayout } from "./TrainLayout";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-interface TraineeDashboardProps { user: User; onLogout: () => void; }
+interface TraineeDashboardProps { user: User; onLogout: () => void; onRoleChange?: (role: UserRole) => void; }
 
 interface Scenario {
   id: string; name: string; difficulty: "beginner" | "intermediate" | "advanced";
@@ -175,7 +176,7 @@ const Tip = ({ active, payload, label }: any) => {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export function TraineeDashboard({ user, onLogout }: TraineeDashboardProps) {
+export function TraineeDashboard({ user, onLogout, onRoleChange }: TraineeDashboardProps) {
   const [tab, setTab] = useState<Tab>("dashboard");
   const [simState, setSimState] = useState<SimState>("idle");
   const [selectedScenario, setSelectedScenario] = useState<Scenario | null>(null);
@@ -191,17 +192,59 @@ export function TraineeDashboard({ user, onLogout }: TraineeDashboardProps) {
   const [replayOpen, setReplayOpen]   = useState(false);
   const [replayFrame, setReplayFrame] = useState(0);
   const emergencyRef = useRef(false);
+  const [activeAlert, setActiveAlert] = useState<string | null>(null);
 
   const completed = SCENARIOS.filter(s => s.completed).length;
   const avgScore  = SCENARIOS.filter(s => s.score).reduce((a, s) => a + (s.score ?? 0), 0) / SCENARIOS.filter(s => s.score).length;
+
+  const getWeatherSpeedModifier = () => {
+    switch (weather) {
+      case "Heavy Rain": return 0.8;
+      case "Dense Fog": return 0.6;
+      case "Strong Wind": return 0.85;
+      case "Snow / Ice": return 0.7;
+      case "Heatwave": return 0.9;
+      default: return 1.0;
+    }
+  };
+
+  const checkRedSignalAhead = (currentProgress: number) => {
+    const x = 160 + (currentProgress / 100) * 600;
+    if (x >= 250 && x < 280) {
+      const isLoop = points.find(p => p.id === "J2")?.state === "reverse";
+      const signalId = isLoop ? "S6" : "S2";
+      const aspect = signals.find(s => s.id === signalId)?.aspect;
+      if (aspect === "red") return { signalId, stopX: 270 };
+    }
+    if (x >= 410 && x < 440) {
+      const aspect = signals.find(s => s.id === "S3")?.aspect;
+      if (aspect === "red") return { signalId: "S3", stopX: 430 };
+    }
+    if (x >= 570 && x < 600) {
+      const isLoop = points.find(p => p.id === "J3")?.state === "reverse";
+      const signalId = isLoop ? "S7" : "S4";
+      const aspect = signals.find(s => s.id === signalId)?.aspect;
+      if (aspect === "red") return { signalId, stopX: 590 };
+    }
+    return null;
+  };
 
   // Sim timer
   useEffect(() => {
     if (simState !== "running") return;
     const t = setInterval(() => {
-      setElapsed(e => e + 1);
       setProgress(p => {
-        const next = Math.min(p + 0.3 * speed, 100);
+        const signalAhead = checkRedSignalAhead(p);
+        if (signalAhead) {
+          setActiveAlert(`TRAIN T-001 HALTED AT RED SIGNAL ${signalAhead.signalId} — CLEAR SIGNAL OR SET ROUTE TO PROCEED`);
+          return p; // don't progress
+        }
+        
+        setActiveAlert(prev => prev && prev.includes("HALTED AT RED SIGNAL") ? null : prev);
+        setElapsed(e => e + 1);
+        
+        const modifier = getWeatherSpeedModifier();
+        const next = Math.min(p + 0.3 * speed * modifier, 100);
         const objCount = selectedScenario?.objectives.length ?? 4;
         setCurrentObj(Math.min(Math.floor(next / (100 / objCount)), objCount - 1));
         if (next >= 100) { setSimState("complete"); clearInterval(t); }
@@ -209,7 +252,7 @@ export function TraineeDashboard({ user, onLogout }: TraineeDashboardProps) {
       });
     }, 200);
     return () => clearInterval(t);
-  }, [simState, speed, selectedScenario]);
+  }, [simState, speed, selectedScenario, signals, points, weather]);
 
   const fmt = (s: number) =>
     `${String(Math.floor(s / 3600)).padStart(2,"0")}:${String(Math.floor((s % 3600) / 60)).padStart(2,"0")}:${String(s % 60).padStart(2,"0")}`;
@@ -227,6 +270,43 @@ export function TraineeDashboard({ user, onLogout }: TraineeDashboardProps) {
     setElapsed(0);
     setSpeed(1);
     emergencyRef.current = false;
+    setActiveAlert(null);
+  };
+
+  const handleRouteSet = () => {
+    if (!activeRoute) return;
+    if (activeRoute === "R1") {
+      setPoints(p => p.map(pt => ["J1", "J2"].includes(pt.id) ? { ...pt, state: "normal" as const } : pt));
+      setSignals(s => s.map(sig => ["S1", "S2"].includes(sig.id) ? { ...sig, aspect: "green" } : sig));
+      fireMacro("Route VZA→MRT SET — Points J1/J2 aligned NORMAL, S1/S2 CLEAR");
+    } else if (activeRoute === "R2") {
+      setPoints(p => p.map(pt => ["J3", "J4"].includes(pt.id) ? { ...pt, state: "normal" as const } : pt));
+      setSignals(s => s.map(sig => ["S4", "S5"].includes(sig.id) ? { ...sig, aspect: "green" } : sig));
+      fireMacro("Route MRT→KLN SET — Points J3/J4 aligned NORMAL, S4/S5 CLEAR");
+    } else if (activeRoute === "R3") {
+      setPoints(p => p.map(pt => pt.id === "J2" ? { ...pt, state: "reverse" as const } : pt));
+      setSignals(s => s.map(sig => sig.id === "S6" ? { ...sig, aspect: "yellow" } : sig));
+      fireMacro("Route LOOP ENTRY SET — Point J2 aligned REVERSE, S6 CAUTION");
+    } else if (activeRoute === "R4") {
+      setPoints(p => p.map(pt => pt.id === "J3" ? { ...pt, state: "reverse" as const } : pt.id === "J4" ? { ...pt, state: "normal" as const } : pt));
+      setSignals(s => s.map(sig => sig.id === "S7" ? { ...sig, aspect: "green" } : sig));
+      fireMacro("Route LOOP EXIT SET — Point J3 aligned REVERSE, J4 NORMAL, S7 CLEAR");
+    }
+  };
+
+  const handleRouteCancel = () => {
+    if (!activeRoute) return;
+    setActiveRoute(null);
+    if (activeRoute === "R1") {
+      setSignals(s => s.map(sig => ["S1", "S2"].includes(sig.id) ? { ...sig, aspect: "red" } : sig));
+    } else if (activeRoute === "R2") {
+      setSignals(s => s.map(sig => ["S4", "S5"].includes(sig.id) ? { ...sig, aspect: "red" } : sig));
+    } else if (activeRoute === "R3") {
+      setSignals(s => s.map(sig => sig.id === "S6" ? { ...sig, aspect: "red" } : sig));
+    } else if (activeRoute === "R4") {
+      setSignals(s => s.map(sig => sig.id === "S7" ? { ...sig, aspect: "red" } : sig));
+    }
+    fireMacro(`Route ${activeRoute} CANCELLED — Signals set to DANGER`);
   };
 
   const fireMacro = (label: string) => {
@@ -306,7 +386,7 @@ export function TraineeDashboard({ user, onLogout }: TraineeDashboardProps) {
               <div className="mono text-xs text-muted-foreground">SIM TIME</div>
               <div className="mono text-sm text-primary-cyan">{fmt(elapsed * speed)}</div>
             </div>
-            <UserHeader user={user} onLogout={onLogout} />
+            <UserHeader user={user} onLogout={onLogout} onRoleChange={onRoleChange} />
           </div>
         </div>
       </header>
@@ -512,6 +592,15 @@ export function TraineeDashboard({ user, onLogout }: TraineeDashboardProps) {
                 </div>
               )}
 
+              {/* Active Alert banner */}
+              {activeAlert && (
+                <div className="border-2 border-yellow-500 bg-yellow-950/40 rounded-sm p-4 flex items-center gap-3">
+                  <AlertTriangle className="w-5 h-5 text-yellow-500 animate-pulse" />
+                  <span className="mono text-xs text-yellow-500">{activeAlert}</span>
+                  <button onClick={() => { setActiveAlert(null); fireMacro("Alarms acknowledged"); }} className="ml-auto mono text-xs text-primary-cyan border border-primary-cyan/30 px-2.5 py-1 rounded-sm hover:bg-primary-cyan/10">ACK ALARM</button>
+                </div>
+              )}
+
               {/* Scenario selector (if none selected) */}
               {!selectedScenario && simState === "idle" && (
                 <div className="bg-bg-slate-gray border-2 border-primary-cyan/30 rounded-sm p-6 flex items-center justify-between">
@@ -554,10 +643,31 @@ export function TraineeDashboard({ user, onLogout }: TraineeDashboardProps) {
                 </div>
               )}
 
+              {/* Live Track Diagram */}
+              {selectedScenario && (
+                <div className="bg-bg-slate-gray border-2 border-border rounded-sm">
+                  <div className="border-b border-border p-4 flex items-center gap-3">
+                    <Radio className="w-4 h-4 text-primary-cyan" />
+                    <span className="mono text-xs text-muted-foreground">LIVE TRACK DIAGRAM</span>
+                  </div>
+                  <div className="p-4 bg-[#10141D]/40">
+                    <TrainLayout
+                      signals={signals}
+                      onSignalClick={cycleSignal}
+                      points={points}
+                      onPointClick={togglePoint}
+                      progress={progress}
+                      simState={simState}
+                      speed={speed}
+                    />
+                  </div>
+                </div>
+              )}
+
               {/* Main simulation controls */}
               <div className="bg-bg-slate-gray border-2 border-border rounded-sm p-5">
                 <div className="mono text-xs text-muted-foreground mb-4">SIMULATION CONTROLS</div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 mb-5">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-9 gap-3 mb-5">
                   <ActionBtn label="START" icon={<Play className="w-4 h-4" />} variant="green" size="lg"
                     disabled={simState === "running" || simState === "complete" || simState === "emergency" || !selectedScenario}
                     onClick={() => setSimState("running")} />
@@ -575,6 +685,22 @@ export function TraineeDashboard({ user, onLogout }: TraineeDashboardProps) {
                     onClick={() => setSpeed(s => s >= 4 ? 1 : s + 1)} />
                   <ActionBtn label="RESET" icon={<RotateCcw className="w-4 h-4" />} variant="ghost" size="lg"
                     onClick={resetSim} />
+                  
+                  {/* New buttons */}
+                  <ActionBtn label="EMERGENCY" icon={<AlertTriangle className="w-4 h-4" />} variant="red" size="lg"
+                    disabled={simState === "idle" || simState === "emergency" || simState === "complete"}
+                    onClick={triggerEmergency} />
+                  <ActionBtn label="HELP REQUEST" icon={<MessageSquare className="w-4 h-4" />} variant="blue" size="lg"
+                    onClick={() => {
+                      fireMacro("Trainee requested assistance");
+                      setActiveAlert("HELP REQUEST SENT — AWAITING SUPERVISOR");
+                    }} />
+                  <ActionBtn label="ACK ALARM" icon={<CheckCircle2 className="w-4 h-4" />} variant="yellow" size="lg"
+                    disabled={!activeAlert}
+                    onClick={() => {
+                      setActiveAlert(null);
+                      fireMacro("Alarms acknowledged");
+                    }} />
                 </div>
 
                 {/* Progress bar */}
@@ -749,10 +875,10 @@ export function TraineeDashboard({ user, onLogout }: TraineeDashboardProps) {
                 <div className="grid grid-cols-2 gap-3">
                   <ActionBtn label="ROUTE SET" icon={<CheckCircle2 className="w-4 h-4" />} variant="green" size="lg"
                     disabled={!activeRoute}
-                    onClick={() => fireMacro(`Route ${activeRoute} SET`)} />
+                    onClick={handleRouteSet} />
                   <ActionBtn label="ROUTE CANCEL" icon={<Square className="w-4 h-4" />} variant="red" size="lg"
                     disabled={!activeRoute} confirm
-                    onClick={() => { setActiveRoute(null); fireMacro("Route CANCELLED"); }} />
+                    onClick={handleRouteCancel} />
                 </div>
               </div>
 

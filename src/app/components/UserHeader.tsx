@@ -1,14 +1,15 @@
-import { User } from "./LoginScreen";
+import { User, UserRole } from "./LoginScreen";
 import { Button } from "./Button";
 import { Shield, GraduationCap, Train, LogOut, Circle } from "lucide-react";
 
 interface UserHeaderProps {
   user: User;
   onLogout: () => void;
+  onRoleChange?: (role: UserRole) => void;
   showLogout?: boolean;
 }
 
-export function UserHeader({ user, onLogout, showLogout = true }: UserHeaderProps) {
+export function UserHeader({ user, onLogout, onRoleChange, showLogout = true }: UserHeaderProps) {
   const getRoleIcon = () => {
     switch (user.role) {
       case "admin":
@@ -41,11 +42,31 @@ export function UserHeader({ user, onLogout, showLogout = true }: UserHeaderProp
             <div className="mono text-xs text-muted-foreground">ID: {user.id}</div>
           </div>
         </div>
-        <div
-          className={`px-3 py-1 rounded-sm border mono text-xs uppercase ${getRoleBadgeColor()}`}
-        >
-          {user.role}
-        </div>
+        {onRoleChange ? (
+          <div className="relative">
+            <select
+              value={user.role}
+              onChange={(e) => onRoleChange(e.target.value as UserRole)}
+              className={`px-3 py-1 rounded-sm border mono text-xs uppercase ${getRoleBadgeColor()} bg-bg-slate-gray cursor-pointer outline-none focus:border-primary-cyan transition-colors appearance-none pr-7`}
+              style={{
+                backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2300D8FF' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`,
+                backgroundRepeat: 'no-repeat',
+                backgroundPosition: 'right 6px center',
+                backgroundSize: '12px'
+              }}
+            >
+              <option value="trainee" className="bg-bg-very-dark-navy text-foreground">Trainee</option>
+              <option value="trainer" className="bg-bg-very-dark-navy text-foreground">Trainer</option>
+              <option value="admin" className="bg-bg-very-dark-navy text-foreground">Admin</option>
+            </select>
+          </div>
+        ) : (
+          <div
+            className={`px-3 py-1 rounded-sm border mono text-xs uppercase ${getRoleBadgeColor()}`}
+          >
+            {user.role}
+          </div>
+        )}
       </div>
 
       <div className="flex items-center gap-4">

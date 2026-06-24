@@ -580,6 +580,13 @@ function PlatformTrackRow({ track, index }: { track: PlatformTrack; index: numbe
 
 interface TrainLayoutProps {
   sessionStates?: Record<string, "active" | "paused" | "completed">;
+  signals?: Signal[];
+  onSignalClick?: (id: string) => void;
+  points?: Point[];
+  onPointClick?: (id: string) => void;
+  progress?: number;
+  simState?: string;
+  speed?: number;
 }
 
 const TRAIN_TRAINEE_MAP: Record<string, string> = {
@@ -595,7 +602,16 @@ const BASE_SPEED: Record<string, number> = {
   T3: 22,
 };
 
-export function TrainLayout({ sessionStates = {} }: TrainLayoutProps) {
+export function TrainLayout({
+  sessionStates = {},
+  signals: propsSignals,
+  onSignalClick,
+  points: propsPoints,
+  onPointClick,
+  progress,
+  simState,
+  speed: propsSpeed,
+}: TrainLayoutProps) {
   const [trains, setTrains] = useState<TrainPosition[]>([
     { id: "T1", x: 160,  y: 175, label: "T-001", traineeId: "TRE-001", speed: 45, direction: "forward",  status: "moving",  trackSegment: "A-B" },
     { id: "T2", x: 460,  y: 175, label: "T-002", traineeId: "TRE-002", speed: 0,  direction: "forward",  status: "stopped", trackSegment: "C"   },
@@ -608,6 +624,9 @@ export function TrainLayout({ sessionStates = {} }: TrainLayoutProps) {
   const [selectedStation, setSelectedStation] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
 
+  const signalsState = propsSignals || signals;
+  const pointsState = propsPoints || points;
+
   // Derive whether each train is allowed to move based on session state
   const isTrainRunning = (trainId: string, currentStatus: TrainPosition["status"]): boolean => {
     if (currentStatus === "fault") return false;
@@ -619,6 +638,7 @@ export function TrainLayout({ sessionStates = {} }: TrainLayoutProps) {
   };
 
   useEffect(() => {
+    if (typeof progress === "number") return; // Position driven by progress prop
     const interval = setInterval(() => {
       setTick((t) => t + 1);
       setTrains((prev) =>
@@ -650,9 +670,13 @@ export function TrainLayout({ sessionStates = {} }: TrainLayoutProps) {
     }, 80);
     return () => clearInterval(interval);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [JSON.stringify(sessionStates)]);
+  }, [JSON.stringify(sessionStates), progress]);
 
   const toggleSignal = (id: string) => {
+    if (onSignalClick) {
+      onSignalClick(id);
+      return;
+    }
     setSignals((prev) =>
       prev.map((s) => {
         if (s.id !== id) return s;
@@ -663,6 +687,10 @@ export function TrainLayout({ sessionStates = {} }: TrainLayoutProps) {
   };
 
   const togglePoint = (id: string) => {
+    if (onPointClick) {
+      onPointClick(id);
+      return;
+    }
     setPoints((prev) =>
       prev.map((p) =>
         p.id === id ? { ...p, state: p.state === "normal" ? "reverse" : "normal" } : p
@@ -675,7 +703,51 @@ export function TrainLayout({ sessionStates = {} }: TrainLayoutProps) {
     setSelectedTrain(null);
   };
 
-  const selectedTrainData   = trains.find((t) => t.id === selectedTrain);
+  const displayTrains = trains.map(t => {
+    if (t.id === "T1" && typeof progress === "number") {
+      const activeProgress = progress;
+      const x = 160 + (activeProgress / 100) * 600;
+      
+      const j2 = pointsState.find(p => p.id === "J2")?.state;
+      const j3 = pointsState.find(p => p.id === "J3")?.state;
+      
+      let y = 175;
+      if (x > 370 && x < 530) {
+        if (j2 === "reverse" || j3 === "reverse") {
+          if (x < 400) {
+            const pct = (x - 370) / 30;
+            y = 175 + pct * 60;
+          } else if (x > 500) {
+            const pct = (530 - x) / 30;
+            y = 175 + pct * 60;
+          } else {
+            y = 235;
+          }
+        }
+      }
+      
+      let status = "stopped";
+      if (simState === "running") {
+        status = "moving";
+      } else if (simState === "emergency") {
+        status = "fault";
+      }
+      
+      const trainSpeed = simState === "running" ? (45 * (propsSpeed || 1)) : 0;
+      
+      return {
+        ...t,
+        x,
+        y,
+        status: status as any,
+        speed: trainSpeed,
+        trackSegment: x > 370 && x < 530 && (j2 === "reverse" || j3 === "reverse") ? "LOOP" : t.trackSegment,
+      };
+    }
+    return t;
+  });
+
+  const selectedTrainData   = displayTrains.find((t) => t.id === selectedTrain);
   const selectedStationData = selectedStation ? STATION_DETAILS[selectedStation] : null;
 
   return (
@@ -804,7 +876,7 @@ export function TrainLayout({ sessionStates = {} }: TrainLayoutProps) {
           })}
 
           {/* Points */}
-          {points.map((pt) => (
+          {pointsState.map((pt) => (
             <g key={pt.id} style={{ cursor: "pointer" }} onClick={() => togglePoint(pt.id)}>
               <circle cx={pt.x} cy={pt.y} r={9}
                 fill={pt.state === "normal" ? "#0A1A2A" : "#1A0A0A"}
@@ -825,7 +897,7 @@ export function TrainLayout({ sessionStates = {} }: TrainLayoutProps) {
           ))}
 
           {/* Signals */}
-          {signals.map((sig) => (
+          {signalsState.map((sig) => (
             <g key={sig.id} style={{ cursor: "pointer" }} onClick={() => toggleSignal(sig.id)}>
               <line x1={sig.x} y1={sig.y + 8} x2={sig.x} y2={sig.y + 30} stroke="#445566" strokeWidth="1.5" />
               <rect x={sig.x - 8} y={sig.y - 8} width="16" height="16"
@@ -844,7 +916,7 @@ export function TrainLayout({ sessionStates = {} }: TrainLayoutProps) {
           ))}
 
           {/* Trains */}
-          {trains.map((train) => (
+          {displayTrains.map((train) => (
             <g key={train.id} style={{ cursor: "pointer" }}
               onClick={() => { setSelectedTrain(train.id === selectedTrain ? null : train.id); setSelectedStation(null); }}>
               {selectedTrain === train.id && (
@@ -943,7 +1015,7 @@ export function TrainLayout({ sessionStates = {} }: TrainLayoutProps) {
         <div>
           <div className="mono text-xs text-muted-foreground mb-3">JUNCTION STATES — CLICK TO TOGGLE</div>
           <div className="grid grid-cols-2 gap-2 mb-3">
-            {points.map((pt) => (
+            {pointsState.map((pt) => (
               <button key={pt.id} onClick={() => togglePoint(pt.id)}
                 className="bg-bg-very-dark-navy border border-border rounded-sm p-2 flex items-center justify-between hover:border-primary-cyan/50 transition-colors">
                 <div className="flex items-center gap-2">
@@ -963,7 +1035,7 @@ export function TrainLayout({ sessionStates = {} }: TrainLayoutProps) {
           </div>
           <div className="mono text-xs text-muted-foreground mb-2">SIGNAL ASPECTS — CLICK TO CYCLE</div>
           <div className="flex flex-wrap gap-2">
-            {signals.map((sig) => (
+            {signalsState.map((sig) => (
               <button key={sig.id} onClick={() => toggleSignal(sig.id)}
                 className="bg-bg-very-dark-navy border border-border rounded-sm px-2 py-1 flex items-center gap-2 hover:border-primary-cyan/50 transition-colors">
                 <span className="w-2 h-2 rounded-full inline-block"

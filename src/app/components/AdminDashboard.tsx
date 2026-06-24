@@ -1,6 +1,6 @@
 /* eslint-disable */
 import { useState } from "react";
-import { User } from "./LoginScreen";
+import { User, UserRole } from "./LoginScreen";
 import { UserHeader } from "./UserHeader";
 import { Button } from "./Button";
 import { TextInput } from "./TextInput";
@@ -11,7 +11,7 @@ import {
   FileText, RefreshCw, AlertTriangle, CheckCircle2, Plus, Shield,
 } from "lucide-react";
 
-interface AdminDashboardProps { user: User; onLogout: () => void; }
+interface AdminDashboardProps { user: User; onLogout: () => void; onRoleChange?: (role: UserRole) => void; }
 type Tab = "overview" | "users" | "system" | "infrastructure" | "logs";
 
 interface SysUser {
@@ -59,7 +59,7 @@ const sc = (s: string) => s === "active" ? "#00FF6B" : s === "suspended" ? "#FF3
 const lc = (l: string) => l === "ERROR" ? "#FF3B3B" : l === "WARNING" ? "#FFD700" : l === "SUCCESS" ? "#00FF6B" : "#00D8FF";
 const vc = (s: string) => s === "online" ? "#00FF6B" : s === "degraded" ? "#FFD700" : "#FF3B3B";
 
-export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
+export function AdminDashboard({ user, onLogout, onRoleChange }: AdminDashboardProps) {
   const [tab, setTab] = useState<Tab>("overview");
   const [users, setUsers] = useState<SysUser[]>(INIT_USERS);
   const [logFilter, setLogFilter] = useState("ALL");
@@ -88,7 +88,7 @@ export function AdminDashboard({ user, onLogout }: AdminDashboardProps) {
             <h1 className="text-primary-cyan text-xl">ADMIN CONTROL PANEL — VZA Railway System</h1>
             <div className="mono text-xs text-muted-foreground mt-1">System Configuration & User Management</div>
           </div>
-          <UserHeader user={user} onLogout={onLogout} />
+          <UserHeader user={user} onLogout={onLogout} onRoleChange={onRoleChange} />
         </div>
       </header>
 
